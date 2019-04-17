@@ -1,7 +1,29 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <clang-c/Index.h>
+#include <stdlib.h>
+#include <string.h>
+#include "utlist.h"
+#include "uthash.h"
 
+struct struct_member
+{
+    struct struct_member *prev, *next;
+    char *name;
+    char *type;
+    int size;
+    int offset;
+};
+
+struct struct_decl
+{
+    char *name;
+    struct struct_member *members;
+    int num_members;
+    UT_hash_handle hh;
+};
+
+static struct struct_decl *s_struct_decls;
 
 bool printKindSpelling(CXCursor cursor) {
     enum CXCursorKind curKind = clang_getCursorKind(cursor);
@@ -34,17 +56,15 @@ bool printLocation(CXCursor cursor) {
     return true;
 }
 
-enum CXChildVisitResult printVisitor(CXCursor cursor, CXCursor parent,
+enum CXChildVisitResult visitor(CXCursor cursor, CXCursor parent,
                                      CXClientData client_data) {
     const char *astSpelling = clang_getCString(clang_getCursorSpelling(cursor));
     CXType childType = clang_getCursorType(cursor);
     CXType parentType = clang_getCursorType(parent);
     if (!clang_equalTypes(childType, parentType)) {
     	printSpelling(cursor);
+    	printKindSpelling(cursor);
     }
-//    printSpelling(cursor);
-//    printKindSpelling(cursor);
-//    printLocation(cursor);
 
     return CXChildVisit_Recurse;
 }
@@ -56,12 +76,7 @@ int main(int argc, const char *argv[]) {
                                                       0, 0,
                                                       CXTranslationUnit_None);
     CXCursor C = clang_getTranslationUnitCursor(TU);
-#if 0
-    printSpelling(C);
-    printKindSpelling(C);
-    printLocation(C);
-#endif
-    clang_visitChildren(C, printVisitor, NULL);
+    clang_visitChildren(C, visitor, NULL);
 
     clang_disposeTranslationUnit(TU);
     clang_disposeIndex(Index);
